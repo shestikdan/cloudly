@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram Mini App</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="{{ url_for('static', filename='js/telegram-app.js') }}" defer></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Telegram Mini App</h1>
+        <div id="user-info">
+            <p>Загрузка данных пользователя...</p>
+        </div>
+        <div id="content" style="display: none;">
+            <div class="welcome-message">
+                <h2>Добро пожаловать в наше приложение!</h2>
+                <p>Вы успешно авторизованы через Telegram.</p>
+            </div>
+            <div class="app-features">
+                <h3>Доступные функции:</h3>
+                <ul>
+                    <li>Функция 1</li>
+                    <li>Функция 2</li>
+                    <li>Функция 3</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 
