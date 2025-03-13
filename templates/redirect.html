@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Перейдите в Telegram</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .telegram-redirect {
+            text-align: center;
+            padding: 2rem;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        
+        .telegram-logo {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 1.5rem;
+            display: block;
+        }
+        
+        .telegram-button {
+            display: inline-block;
+            background-color: #0088cc;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+            margin-top: 1rem;
+            transition: background-color 0.2s;
+        }
+        
+        .telegram-button:hover {
+            background-color: #0077b5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="telegram-redirect">
+            <img src="https://telegram.org/img/t_logo.svg" alt="Telegram Logo" class="telegram-logo">
+            <h1>Это приложение доступно только через Telegram</h1>
+            <p>Для использования этого приложения, пожалуйста, откройте его через Telegram бота.</p>
+            <a href="https://t.me/TenMoBot" class="telegram-button">Открыть в Telegram</a>
+            <p class="hint" style="margin-top: 2rem; color: #777;">
+                Если вы уже в Telegram, но видите эту страницу, попробуйте открыть бота заново и нажать на кнопку "Открыть мини-приложение".
+            </p>
+        </div>
+    </div>
+</body>
+</html> 

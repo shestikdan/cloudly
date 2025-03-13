@@ -81,15 +81,40 @@ def parse_init_data(init_data):
         print(f"Error parsing init data: {e}")
         return result
 
+# Функция для проверки, открыто ли приложение из Telegram
+def is_telegram_web_app():
+    user_agent = request.headers.get('User-Agent', '').lower()
+    # Проверяем наличие параметра tgWebAppData в запросе или специфичного User-Agent
+    return (
+        'tgwebapp' in user_agent or 
+        'telegram' in user_agent or 
+        request.args.get('tgWebAppData') or 
+        request.args.get('tgWebAppVersion') or
+        request.cookies.get('tgWebAppData')
+    )
+
 @app.route('/')
 def index():
     """Main page for the Telegram Mini App"""
+    # Проверяем, открыто ли приложение из Telegram
+    if not is_telegram_web_app():
+        return render_template('redirect.html')
+    
     return render_template('index.html')
 
 @app.route('/auth')
 def auth():
     """Authentication page for the Telegram Mini App"""
+    # Проверяем, открыто ли приложение из Telegram
+    if not is_telegram_web_app():
+        return render_template('redirect.html')
+    
     return render_template('auth.html')
+
+@app.route('/redirect')
+def redirect_to_telegram():
+    """Страница перенаправления в Telegram"""
+    return render_template('redirect.html')
 
 @app.route('/api/validate-telegram-data', methods=['POST'])
 def validate_telegram_data():
