@@ -3,50 +3,137 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Перейдите в Telegram</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <title>Перенаправление</title>
     <style>
-        .telegram-redirect {
-            text-align: center;
-            padding: 2rem;
-            max-width: 500px;
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 800px;
             margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+            margin-bottom: 20px;
+            flex: 1;
         }
         
-        .telegram-logo {
-            width: 100px;
-            height: 100px;
-            margin: 0 auto 1.5rem;
-            display: block;
+        h1 {
+            color: #2469D8;
+            margin-bottom: 20px;
+            text-align: center;
         }
         
-        .telegram-button {
-            display: inline-block;
-            background-color: #0088cc;
-            color: white;
-            padding: 12px 24px;
-            border-radius: 8px;
-            text-decoration: none;
+        .instructions {
+            margin-bottom: 30px;
+        }
+        
+        .step {
+            margin-bottom: 15px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-left: 4px solid #2469D8;
+            border-radius: 4px;
+        }
+        
+        .step-number {
             font-weight: bold;
-            margin-top: 1rem;
-            transition: background-color 0.2s;
+            color: #2469D8;
+            margin-right: 5px;
         }
         
-        .telegram-button:hover {
-            background-color: #0077b5;
+        .button {
+            display: inline-block;
+            background-color: #2469D8;
+            color: #fff;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            text-align: center;
+            text-decoration: none;
+            margin: 10px 0;
+        }
+        
+        .button:hover {
+            background-color: #1D5BB5;
+        }
+        
+        .tip {
+            background-color: #FFF9E6;
+            padding: 10px 15px;
+            border-left: 4px solid #FFD166;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        
+        .error-box {
+            background-color: #FEECEC;
+            padding: 15px;
+            border-left: 4px solid #D32F2F;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        
+        img {
+            max-width: 100%;
+            height: auto;
+            margin: 15px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .center {
+            text-align: center;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="telegram-redirect">
-            <img src="https://telegram.org/img/t_logo.svg" alt="Telegram Logo" class="telegram-logo">
-            <h1>Это приложение доступно только через Telegram</h1>
-            <p>Для использования этого приложения, пожалуйста, откройте его через Telegram бота.</p>
-            <a href="https://t.me/TenMoBot" class="telegram-button">Открыть в Telegram</a>
-            <p class="hint" style="margin-top: 2rem; color: #777;">
-                Если вы уже в Telegram, но видите эту страницу, попробуйте открыть бота заново и нажать на кнопку "Открыть мини-приложение".
-            </p>
+        <h1>Доступ к приложению</h1>
+        
+        <div class="error-box">
+            <p><strong>Необходимо открыть это приложение через Telegram</strong></p>
+            <p>Вы видите эту страницу, потому что приложение не обнаружило корректного запуска из Telegram Mini App.</p>
+        </div>
+        
+        <div class="instructions">
+            <div class="step">
+                <span class="step-number">1.</span> Откройте Telegram и найдите бота или канал нашего приложения
+            </div>
+            
+            <div class="step">
+                <span class="step-number">2.</span> Нажмите на кнопку или ссылку, которая открывает это мини-приложение
+            </div>
+            
+            <div class="step">
+                <span class="step-number">3.</span> Если вы уже в Telegram, но всё равно видите эту страницу, попробуйте:
+                <ul>
+                    <li>Обновить Telegram до последней версии</li>
+                    <li>Перезапустить Telegram</li>
+                    <li>Очистить кэш Telegram (настройки → данные и память → очистить кэш)</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="tip">
+            <p><strong>Совет:</strong> Telegram Mini Apps работают только при открытии внутри приложения Telegram. Прямой доступ через браузер не поддерживается.</p>
+        </div>
+        
+        <div class="center">
+            <a href="https://t.me/" class="button">Перейти в Telegram</a>
         </div>
     </div>
 </body>

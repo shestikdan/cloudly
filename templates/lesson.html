@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Урок КПТ</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+    <style>
+        /* Принудительные стили светлой темы */
+        :root {
+            --tg-theme-bg-color: #ffffff !important;
+            --tg-theme-text-color: #000000 !important;
+            --tg-theme-hint-color: #999999 !important;
+            --tg-theme-link-color: #2481cc !important;
+            --tg-theme-button-color: #2481cc !important;
+            --tg-theme-button-text-color: #ffffff !important;
+            --tg-theme-secondary-bg-color: #f5f5f5 !important;
+        }
+        
+        /* Общий фоновый элемент */
+        .background-image {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 50%;
+            background-image: url("{{ url_for('static', filename='img/good_b.png') }}");
+            background-size: cover;
+            background-position: center;
+            z-index: 0; /* Самый нижний слой */
+        }
+        
+        /* Parallax section styles */
+        .parallax-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 250px;
+            background-image: url("{{ url_for('static', filename='img/good_c.png') }}");
+            background-size: cover;
+            background-position: center;
+            transform: translateX(0) translateY(0);
+            will-change: transform;
+            transition: transform 0.1s ease-out;
+            z-index: 1; /* Средний слой */
+        }
+        
+        body {
+            background-color: #ffffff !important;
+            color: #000000 !important;
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 3; /* Должен быть выше speech-bubble */
+            margin-top: 5px; /* Уменьшено с 20px до 5px */
+            background-color: #ffffff;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            transition: background-image 0.5s ease-in-out;
+            border-radius: 16px;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="app-header">
+            <div class="back-button" id="backButton">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <h1 class="header-title" id="lessonTitle">Урок</h1>
+        </header>
+
+        <!-- Контейнер для авторизации (скрыт по умолчанию) -->
+        <div id="authContainer" style="display: none;">
+            <h2>Авторизация</h2>
+            <p>Пожалуйста, подождите, идет проверка авторизации...</p>
+            <div id="authLoading" style="display: none;">Загрузка...</div>
+            <div id="authError" style="display: none; color: red;"></div>
+            <p><a href="/lesson/{{ lesson_id }}?bypass_auth=1" class="button">Продолжить без авторизации</a></p>
+        </div>
+
+        <div class="lesson-progress-container">
+            <div class="page-indicator" id="pageIndicator">
+                Страница <span id="currentPage">1</span> из <span id="totalPages">1</span>
+            </div>
+            <div class="progress-dots" id="progressDots">
+                <!-- Здесь будут отображаться точки прогресса -->
+            </div>
+        </div>
+
+        <div class="lesson-content-container" id="lessonContent">
+            <!-- Здесь будет отображаться контент урока -->
+            <div class="loading-indicator">Загрузка урока...</div>
+        </div>
+
+        <div class="lesson-navigation">
+            <button class="nav-button prev-button" id="prevButton" disabled>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Назад
+            </button>
+            <button class="nav-button next-button" id="nextButton">
+                Далее
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M9 6L15 12L9 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Получаем ID урока из URL
+        const lessonId = "{{ lesson_id }}";
+        
+        // Состояние урока
+        let lessonState = {
+            currentPage: 1,
+            totalPages: 1,
+            pages: [],
+            lessonData: null,
+            courseId: null,
+            nextLessonId: null,
+            prevLessonId: null,
+            isCompleted: false
+        };
+        
+        // Функция для загрузки информации об уроке
+        async function loadLesson() {
+            try {
+                // Проверяем авторизацию
+                const authResult = await authenticateUser();
+                if (!authResult.success) {
+                    // Если авторизация не удалась, показываем контейнер авторизации
+                    document.getElementById('lessonContent').style.display = 'none';
+                    document.getElementById('authContainer').style.display = 'block';
+                    return;
+                }
+                
+                // Если авторизация успешна, скрываем контейнер авторизации
+                document.getElementById('authContainer').style.display = 'none';
+                document.getElementById('lessonContent').style.display = 'block';
+                
+                // Загружаем урок
+                const response = await fetchWithAuth(`/api/lessons/${lessonId}`);
+                
+                // Проверяем статус ответа
+                if (response.status === 401) {
+                    // Если сервер вернул 401 (Unauthorized), показываем контейнер авторизации
+                    document.getElementById('lessonContent').style.display = 'none';
+                    document.getElementById('authContainer').style.display = 'block';
+                    return;
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    lessonState.lessonData = data.lesson;
+                    lessonState.pages = data.pages;
+                    lessonState.totalPages = data.total_pages;
+                    lessonState.currentPage = data.current_page;
+                    lessonState.nextLessonId = data.next_lesson ? data.next_lesson.id : null;
+                    lessonState.prevLessonId = data.prev_lesson ? data.prev_lesson.id : null;
+                    lessonState.isCompleted = data.is_completed;
+                    lessonState.courseId = data.lesson.course_id;
+                    
+                    displayLessonInfo(data.lesson);
+                    displayPageContent(lessonState.currentPage);
+                    updateNavigation();
+                    updateProgressDots();
+                } else {
+                    showError('Не удалось загрузить урок: ' + data.error);
+                }
+            } catch (error) {
+                showError('Ошибка при загрузке урока: ' + error.message);
+            }
+        }
+        
+        // Функция для отображения информации об уроке
+        function displayLessonInfo(lesson) {
+            document.getElementById('lessonTitle').textContent = lesson.title;
+            document.title = lesson.title;
+            
+            // Настраиваем кнопку "Назад"
+            document.getElementById('backButton').onclick = () => {
+                window.location.href = `/course/${lesson.course_id}`;
+            };
+        }
+        
+        // Функция для отображения контента страницы
+        function displayPageContent(pageNumber) {
+            const container = document.getElementById('lessonContent');
+            container.innerHTML = '';
+            
+            // Проверяем, существует ли страница
+            if (pageNumber < 1 || pageNumber > lessonState.totalPages) {
+                container.innerHTML = '<div class="error-message">Страница не найдена</div>';
+                return;
+            }
+            
+            // Получаем блоки контента для текущей страницы
+            const pageBlocks = lessonState.pages[pageNumber - 1];
+            
+            // Создаем элементы для каждого блока
+            pageBlocks.forEach(block => {
+                const blockElement = document.createElement('div');
+                
+                if (block.block_type === 'heading') {
+                    blockElement.className = 'content-heading';
+                    blockElement.innerHTML = `<h2>${block.content}</h2>`;
+                } else if (block.block_type === 'paragraph') {
+                    blockElement.className = 'content-paragraph';
+                    blockElement.innerHTML = `<p>${block.content}</p>`;
+                }
+                
+                container.appendChild(blockElement);
+            });
+            
+            // Обновляем индикатор страниц
+            document.getElementById('currentPage').textContent = pageNumber;
+            document.getElementById('totalPages').textContent = lessonState.totalPages;
+            
+            // Обновляем состояние
+            lessonState.currentPage = pageNumber;
+            
+            // Обновляем навигацию
+            updateNavigation();
+            updateProgressDots();
+        }
+        
+        // Функция для обновления навигационных кнопок
+        function updateNavigation() {
+            const prevButton = document.getElementById('prevButton');
+            const nextButton = document.getElementById('nextButton');
+            
+            // Кнопка "Назад"
+            if (lessonState.currentPage <= 1) {
+                prevButton.disabled = true;
+            } else {
+                prevButton.disabled = false;
+                prevButton.onclick = () => navigateToPage(lessonState.currentPage - 1);
+            }
+            
+            // Кнопка "Далее"
+            if (lessonState.currentPage >= lessonState.totalPages) {
+                // Если это последняя страница
+                if (lessonState.nextLessonId) {
+                    // Если есть следующий урок
+                    nextButton.textContent = 'Следующий урок';
+                    nextButton.onclick = () => {
+                        // Отмечаем текущий урок как завершенный и переходим к следующему
+                        completeLesson().then(() => {
+                            window.location.href = `/lesson/${lessonState.nextLessonId}`;
+                        });
+                    };
+                } else {
+                    // Если это последний урок в курсе
+                    nextButton.textContent = 'Завершить курс';
+                    nextButton.onclick = () => {
+                        // Отмечаем текущий урок как завершенный и возвращаемся к курсу
+                        completeLesson().then(() => {
+                            window.location.href = `/course/${lessonState.courseId}`;
+                        });
+                    };
+                }
+            } else {
+                // Если это не последняя страница
+                nextButton.textContent = 'Далее';
+                nextButton.onclick = () => navigateToPage(lessonState.currentPage + 1);
+            }
+        }
+        
+        // Функция для обновления точек прогресса
+        function updateProgressDots() {
+            const dotsContainer = document.getElementById('progressDots');
+            dotsContainer.innerHTML = '';
+            
+            for (let i = 1; i <= lessonState.totalPages; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'progress-dot';
+                if (i === lessonState.currentPage) {
+                    dot.classList.add('active');
+                }
+                dot.onclick = () => navigateToPage(i);
+                dotsContainer.appendChild(dot);
+            }
+        }
+        
+        // Функция для навигации к определенной странице
+        async function navigateToPage(pageNumber) {
+            try {
+                const response = await fetchWithAuth(`/api/lessons/${lessonId}/page/${pageNumber}`);
+                
+                // Проверяем статус ответа
+                if (response.status === 401) {
+                    // Если сервер вернул 401 (Unauthorized), показываем контейнер авторизации
+                    document.getElementById('lessonContent').style.display = 'none';
+                    document.getElementById('authContainer').style.display = 'block';
+                    return;
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayPageContent(pageNumber);
+                } else {
+                    showError('Не удалось загрузить страницу: ' + data.error);
+                }
+            } catch (error) {
+                showError('Ошибка при загрузке страницы: ' + error.message);
+            }
+        }
+        
+        // Функция для отметки урока как завершенного
+        async function completeLesson() {
+            // Проверяем состояние авторизации перед отправкой запроса
+            console.log("Проверка авторизации перед завершением урока...");
+            const telegramUser = localStorage.getItem('telegramUser');
+            if (!telegramUser) {
+                console.error("ОШИБКА: Пользователь не авторизован (нет telegramUser в localStorage)");
+                // Пробуем авторизоваться
+                const authResult = await authenticateUser();
+                console.log("Результат авторизации:", authResult);
+                if (!authResult.success) {
+                    console.error("Не удалось авторизоваться");
+                    document.getElementById('lessonContent').style.display = 'none';
+                    document.getElementById('authContainer').style.display = 'block';
+                    return { success: false, error: 'Пользователь не авторизован' };
+                }
+            } else {
+                console.log("Пользователь авторизован:", JSON.parse(telegramUser));
+            }
+            
+            try {
+                console.log(`Отправка запроса на завершение урока ${lessonId}...`);
+                const response = await fetchWithAuth(`/api/lessons/${lessonId}/complete`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                // Проверяем статус ответа
+                if (response.status === 401) {
+                    // Если сервер вернул 401 (Unauthorized), показываем контейнер авторизации
+                    console.error("Сервер вернул 401 Unauthorized");
+                    document.getElementById('lessonContent').style.display = 'none';
+                    document.getElementById('authContainer').style.display = 'block';
+                    return { success: false, error: 'Unauthorized' };
+                }
+                
+                const data = await response.json();
+                
+                // Выводим результат в консоль для отладки
+                console.log('Ответ сервера на запрос завершения урока:', data);
+                
+                if (data.success) {
+                    // Если урок успешно отмечен как завершенный, сохраняем этот факт в localStorage
+                    const today = new Date();
+                    const todayString = today.toISOString().split('T')[0];
+                    
+                    // Сохраняем информацию о завершении урока
+                    localStorage.setItem('lastLessonCompletedDate', todayString);
+                    localStorage.setItem('lessonCompletedToday', 'true');
+                    localStorage.setItem('lessonCompleted', Date.now().toString());
+                    
+                    console.log('Урок отмечен как завершенный на сегодня');
+                    
+                    // Если у нас есть родительское окно, отправляем сообщение
+                    if (window.parent && window.parent !== window) {
+                        window.parent.postMessage({ action: 'lessonCompleted' }, '*');
+                    }
+                    
+                    // При навигации на страницу с курсами добавляем параметр
+                    if (data.next_lesson) {
+                        // Добавляем флаг для следующего урока
+                        data.next_lesson.url = data.next_lesson.url + '?lessonCompleted=true';
+                    }
+                } else {
+                    console.error('Не удалось отметить урок как завершенный:', data.error);
+                }
+                
+                return data;
+            } catch (error) {
+                console.error('Ошибка при отметке урока как завершенного:', error);
+                return { success: false, error: error.message };
+            }
+        }
+        
+        // Функция для отображения ошибки
+        function showError(message) {
+            const container = document.getElementById('lessonContent');
+            container.innerHTML = `<div class="error-message">${message}</div>`;
+        }
+        
+        // Загружаем информацию об уроке при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            loadLesson();
+        });
+    </script>
+</body>
+</html> 

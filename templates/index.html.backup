@@ -14,44 +14,9 @@
     <!-- Проверка загрузки chat-init.js -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            
-            // Обновляем обработчики только если chat-init.js загружен
-            if (typeof window.handleSendMessage === 'function') {
-                console.log("✅ Файл chat-init.js успешно загружен, используем его функции");
-                
-                // Назначаем обработчики напрямую на глобальные функции
-                const chatSend = document.getElementById('chatSend');
-                const chatInput = document.getElementById('chatInput');
-                
-                if (chatSend) {
-                    chatSend.onclick = window.handleSendMessage;
-                    console.log("✅ Установлен обработчик клика для кнопки отправки");
-                }
-                
-                if (chatInput) {
-                    chatInput.onkeypress = function(e) {
-                        if (e.key === 'Enter') {
-                            window.handleSendMessage();
-                        }
-                    };
-                    console.log("✅ Установлен обработчик нажатия Enter для поля ввода");
-                }
-                
-                // Если есть кнопка открытия чата, назначаем обработчик
-                const chatButton = document.getElementById('journalCardChat');
-                if (chatButton && typeof window.openChat === 'function') {
-                    chatButton.onclick = window.openChat;
-                    console.log("✅ Установлен обработчик для кнопки открытия чата");
-                }
-                
-                // Если есть кнопка закрытия чата, назначаем обработчик
-                const chatClose = document.getElementById('chatClose');
-                if (chatClose && typeof window.closeChat === 'function') {
-                    chatClose.onclick = window.closeChat;
-                    console.log("✅ Установлен обработчик для кнопки закрытия чата");
-                }
-                
-                console.log("✅ Файл chat-init.js загружен успешно");
+            // Проверяем, загружен ли chat-init.js
+            if (typeof window.initChat === 'function') {
+                // Все необходимые обработчики устанавливаются внутри chat-init.js
             } else {
                 console.log("❌ ОШИБКА: Файл chat-init.js не загружен. Чат будет работать в упрощенном режиме.");
             }
@@ -182,13 +147,13 @@
                     // Обработчик для карточки "Всё нормально"
                     normalStateCard.addEventListener('click', function() {
                         // Открываем окно чата
-                        openChat();
+                        window.openChat();
                     });
                     
                     // Обработчик для карточки "Чувствую тревогу"
                     anxiousStateCard.addEventListener('click', function() {
                         // Открываем окно чата
-                        openChat();
+                        window.openChat();
                     });
                 }
             });
@@ -1787,28 +1752,11 @@
             const chatCloseButton = document.getElementById('chatCloseButton');
             if (chatCloseButton) {
                 chatCloseButton.addEventListener('click', function() {
-                    // Ручное закрытие чата
-                    if (chatOverlay) {
-                        // Применяем анимацию исчезновения к контейнеру
-                        const chatContainer = document.getElementById('chatContainer');
-                        if (chatContainer) {
-                            // Анимируем исчезновение
-                            chatContainer.style.opacity = '0';
-                            chatContainer.style.transform = 'translateY(20px)';
-                            
-                            // Убираем класс active у оверлея после анимации
-                            setTimeout(() => {
-                                chatOverlay.classList.remove('active');
-                                // Сброс стилей для следующего открытия
-                                chatContainer.style.transition = '';
-                            }, 300);
-                        } else {
-                            // Если контейнер не найден, просто скрываем оверлей
-                            chatOverlay.classList.remove('active');
-                        }
+                    if (typeof window.closeChat === 'function') {
+                        window.closeChat();
+                    } else {
+                        console.error('Функция window.closeChat не найдена');
                     }
-                    
-                    console.log('Закрыт чат по клику на кнопку закрытия');
                 });
             }
             
@@ -2549,33 +2497,51 @@
                     let buttons = '';
                     
                     if (!lessonCompleted && !journalCompleted) {
+                        // Ничего не выполнено сегодня
                         message = 'Привет! Начни свой день с короткого урока или анализа ситуации.';
+                        buttons = `
+                            <button class="action-button analyze-button" id="startLessonBtn">Начать урок</button>
+                            <button class="action-button analyze-button" id="startJournalBtn">Сделать заметку</button>
+                        `;
                     } else if (lessonCompleted && !journalCompleted) {
+                        // Пройден урок, но нет заметки
                         message = 'Отлично, урок пройден, давайте теперь создадим новую запись в твоем ежедневнике.';
+                        buttons = '';
                     } else if (!lessonCompleted && journalCompleted) {
+                        // Есть заметка, но не пройден урок
                         message = 'Здорово, что ты проанализировал ситуацию! Предлагаю также пройти сегодняшний урок.';
+                        buttons = `
+                            <button class="action-button analyze-button" id="startLessonBtn">Начать урок</button>
+                        `;
                     } else {
+                        // Всё выполнено
                         message = 'Супер! На сегодня ты молодец - урок пройден и ситуация проанализирована!';
+                        buttons = ''; // Убираем все кнопки
                     }
                     
-                    speechBubble.innerHTML = `${message}`;
-                }
-                
-                // Обновляем состояние карточек
-                if (lessonCompleted) {
-                    markCardCompleted(
-                        document.getElementById('coursesCard'),
-                        document.getElementById('coursesIndicator'),
-                        new Date().toISOString().split('T')[0],
-                        'проверка при загрузке'
-                    );
-                }
-                
-                if (journalCompleted) {
-                    markJournalCompleted(
-                        new Date().toISOString().split('T')[0],
-                        'проверка при загрузке'
-                    );
+                    speechBubble.innerHTML = `
+                        ${message}
+                        <div class="speech-bubble-actions">
+                            ${buttons}
+                        </div>
+                    `;
+                    
+                    // Добавляем обработчики после обновления DOM
+                    const startLessonBtn = document.getElementById('startLessonBtn');
+                    const startJournalBtn = document.getElementById('startJournalBtn');
+                    
+                    if (startLessonBtn) {
+                        startLessonBtn.addEventListener('click', function() {
+                            console.log('Переход к урокам');
+                            window.location.href = '/courses';
+                        });
+                    }
+                    
+                    if (startJournalBtn) {
+                        startJournalBtn.addEventListener('click', function() {
+                            window.openChat();
+                        });
+                    }
                 }
             }
         });
@@ -2799,26 +2765,26 @@
     <div class="chat-overlay" id="chatOverlay">
         <!-- Контейнер чата -->
         <div class="chat-container" id="chatContainer">
-        <div class="chat-header">
-            <button class="chat-close-button" id="chatCloseButton">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-            </button>
-            <h2 class="chat-title">Умный ежедневник</h2>
+            <div class="chat-header">
+                <button class="chat-close-button" id="chatCloseButton">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+                <h2 class="chat-title">Умный ежедневник</h2>
+            </div>
+            <div class="chat-messages" id="chatMessages">
+                <!-- Сообщения будут добавляться динамически -->
+            </div>
+            <div class="chat-input-container">
+                <input type="text" id="userInput" class="chat-input" placeholder="Введите сообщение...">
+                <button id="sendButton" class="chat-send-button">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M2 21L23 12L2 3V10L17 12L2 14V21Z" fill="currentColor"/>
+                    </svg>
+                </button>
+            </div>
         </div>
-        <div class="chat-messages" id="chatMessages">
-            <!-- Сообщения будут добавляться динамически -->
-        </div>
-        <div class="chat-input-container">
-            <input type="text" id="userInput" class="chat-input" placeholder="Введите сообщение...">
-            <button id="sendButton" class="chat-send-button">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M2 21L23 12L2 3V10L17 12L2 14V21Z" fill="currentColor"/>
-                </svg>
-            </button>
-        </div>
-    </div>
     </div>
 </body>
 </html> 

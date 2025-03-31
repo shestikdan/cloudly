@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Курсы КПТ</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+    <style>
+        /* Принудительные стили светлой темы */
+        :root {
+            --tg-theme-bg-color: #ffffff !important;
+            --tg-theme-text-color: #000000 !important;
+            --tg-theme-hint-color: #999999 !important;
+            --tg-theme-link-color: #2481cc !important;
+            --tg-theme-button-color: #2481cc !important;
+            --tg-theme-button-text-color: #ffffff !important;
+            --tg-theme-secondary-bg-color: #f5f5f5 !important;
+        }
+        
+        /* Общий фоновый элемент */
+        .background-image {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 50%;
+            background-image: url("{{ url_for('static', filename='img/good_b.png') }}");
+            background-size: cover;
+            background-position: center;
+            z-index: 0; /* Самый нижний слой */
+        }
+        
+        /* Parallax section styles */
+        .parallax-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 250px;
+            background-image: url("{{ url_for('static', filename='img/good_c.png') }}");
+            background-size: cover;
+            background-position: center;
+            transform: translateX(0) translateY(0);
+            will-change: transform;
+            transition: transform 0.1s ease-out;
+            z-index: 1; /* Средний слой */
+        }
+        
+        body {
+            background-color: #ffffff !important;
+            color: #000000 !important;
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 3; /* Должен быть выше speech-bubble */
+            margin-top: 5px; /* Уменьшено с 20px до 5px */
+            background-color: #ffffff;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            transition: background-image 0.5s ease-in-out;
+            border-radius: 16px;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="app-header">
+            <div class="back-button" onclick="window.location.href='/'">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <h1 class="header-title">Курсы</h1>
+        </header>
+
+        <!-- Контейнер для авторизации (скрыт по умолчанию) -->
+        <div id="authContainer" style="display: none;">
+            <h2>Авторизация</h2>
+            <p>Пожалуйста, подождите, идет проверка авторизации...</p>
+            <div id="authLoading" style="display: none;">Загрузка...</div>
+            <div id="authError" style="display: none; color: red;"></div>
+            <p><a href="/courses?bypass_auth=1" class="button">Продолжить без авторизации</a></p>
+        </div>
+
+        <!-- Контейнер для курсов -->
+        <div class="courses-container" id="coursesContainer">
+            <!-- Здесь будут отображаться курсы -->
+            <div class="loading-indicator">Загрузка курсов...</div>
+        </div>
+    </div>
+
+    <script>
+        // Функция для загрузки списка курсов
+        async function loadCourses() {
+            console.log('Запуск функции loadCourses');
+            try {
+                // Проверяем авторизацию
+                const authResult = await authenticateUser();
+                console.log('Результат авторизации:', authResult);
+                
+                if (!authResult.success) {
+                    // Если авторизация не удалась, показываем контейнер авторизации
+                    console.log('Авторизация не удалась, показываем контейнер авторизации');
+                    document.getElementById('coursesContainer').style.display = 'none';
+                    document.getElementById('authContainer').style.display = 'block';
+                    return;
+                }
+                
+                // Если авторизация успешна, скрываем контейнер авторизации
+                console.log('Авторизация успешна, загружаем курсы');
+                document.getElementById('authContainer').style.display = 'none';
+                document.getElementById('coursesContainer').style.display = 'block';
+                
+                // Загружаем курсы без bypass_auth
+                const url = '/api/courses';
+                console.log(`Отправка запроса на URL: ${url}`);
+                
+                // Загружаем курсы
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                
+                console.log(`Статус ответа: ${response.status}`);
+                
+                // Проверяем статус ответа
+                if (response.status === 401) {
+                    // Если сервер вернул 401 (Unauthorized), показываем контейнер авторизации
+                    console.log('Получен статус 401, показываем контейнер авторизации');
+                    document.getElementById('coursesContainer').style.display = 'none';
+                    document.getElementById('authContainer').style.display = 'block';
+                    return;
+                }
+                
+                // Получаем тело ответа в текстовом формате для отладки
+                const responseText = await response.text();
+                console.log('Ответ сервера (текст):', responseText);
+                
+                try {
+                    // Преобразуем текст в JSON
+                    const data = JSON.parse(responseText);
+                    console.log('Данные JSON:', data);
+                    
+                    if (data.success) {
+                        displayCourses(data.courses);
+                    } else {
+                        showError('Не удалось загрузить курсы: ' + data.error);
+                    }
+                } catch (jsonError) {
+                    console.error('Ошибка при разборе JSON:', jsonError);
+                    showError('Ошибка при разборе ответа от сервера: ' + responseText);
+                }
+            } catch (error) {
+                console.error('Ошибка при загрузке курсов:', error);
+                showError('Ошибка при загрузке курсов: ' + error.message);
+            }
+        }
+        
+        // Функция для отображения курсов
+        function displayCourses(courses) {
+            const container = document.getElementById('coursesContainer');
+            container.innerHTML = '';
+            
+            if (courses.length === 0) {
+                container.innerHTML = '<div class="empty-state">Курсы не найдены</div>';
+                return;
+            }
+            
+            courses.forEach(course => {
+                const courseCard = document.createElement('div');
+                courseCard.className = 'course-card';
+                courseCard.onclick = () => window.location.href = `/course/${course.id}`;
+                
+                const imageUrl = course.image_url || 'data:image/svg+xml;charset=UTF-8,%3csvg width="200" height="200" xmlns="http://www.w3.org/2000/svg"%3e%3cpath d="M187 95c0 51.915-42.085 94-94 94S-1 146.915-1 95 41.085 1 93 1s94 42.085 94 94z" fill="%23ffffff" fill-opacity=".2" stroke="%23ffffff"/%3e%3c/svg%3e';
+                
+                courseCard.innerHTML = `
+                    <div class="course-content">
+                        <h2 class="course-title">${course.title}</h2>
+                        <p class="course-description">${course.description || ''}</p>
+                        <div class="course-meta">
+                            <span class="course-lessons">${course.lessons_count} уроков</span>
+                        </div>
+                    </div>
+                `;
+                
+                container.appendChild(courseCard);
+            });
+        }
+        
+        // Функция для отображения ошибки
+        function showError(message) {
+            const container = document.getElementById('coursesContainer');
+            container.innerHTML = `<div class="error-message">${message}</div>`;
+        }
+        
+        // Функция для отметки завершения урока
+        function markLessonCompleted() {
+            // Текущая дата в формате YYYY-MM-DD
+            const today = new Date();
+            const todayString = today.toISOString().split('T')[0];
+            
+            // Сохраняем информацию о завершении урока
+            localStorage.setItem('lastLessonCompletedDate', todayString);
+            localStorage.setItem('lessonCompletedToday', 'true');
+            
+            // Генерируем событие для других страниц
+            localStorage.setItem('lessonCompleted', Date.now().toString());
+            
+            console.log('Урок отмечен как завершенный');
+        }
+        
+        // Обработчик события для отметки завершения урока
+        window.addEventListener('message', function(event) {
+            // Проверяем, что сообщение от нашего приложения и содержит нужные данные
+            if (event.data && event.data.action === 'lessonCompleted') {
+                markLessonCompleted();
+            }
+        });
+        
+        // Загружаем курсы при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCourses();
+            
+            // Также можно проверить URL на наличие параметра lessonCompleted
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('lessonCompleted') === 'true') {
+                markLessonCompleted();
+            }
+        });
+    </script>
+</body>
+</html> 

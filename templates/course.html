@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Курс КПТ</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+    <style>
+        /* Принудительные стили светлой темы */
+        :root {
+            --tg-theme-bg-color: #ffffff !important;
+            --tg-theme-text-color: #000000 !important;
+            --tg-theme-hint-color: #999999 !important;
+            --tg-theme-link-color: #2481cc !important;
+            --tg-theme-button-color: #2481cc !important;
+            --tg-theme-button-text-color: #ffffff !important;
+            --tg-theme-secondary-bg-color: #f5f5f5 !important;
+        }
+        
+        /* Общий фоновый элемент */
+        .background-image {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 50%;
+            background-image: url("{{ url_for('static', filename='img/good_b.png') }}");
+            background-size: cover;
+            background-position: center;
+            z-index: 0; /* Самый нижний слой */
+        }
+        
+        /* Parallax section styles */
+        .parallax-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 250px;
+            background-image: url("{{ url_for('static', filename='img/good_c.png') }}");
+            background-size: cover;
+            background-position: center;
+            transform: translateX(0) translateY(0);
+            will-change: transform;
+            transition: transform 0.1s ease-out;
+            z-index: 1; /* Средний слой */
+        }
+        
+        body {
+            background-color: #ffffff !important;
+            color: #000000 !important;
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 3; /* Должен быть выше speech-bubble */
+            margin-top: 5px; /* Уменьшено с 20px до 5px */
+            background-color: #ffffff;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            transition: background-image 0.5s ease-in-out;
+            border-radius: 16px;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+        }
+
+        .course-progress-container {
+            margin: 20px 0;
+            padding: 0 20px;
+        }
+
+        .lessons-container {
+            padding: 0 20px;
+        }
+
+        .lesson-card {
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 12px;
+            background-color: #ffffff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="app-header">
+            <div class="back-button" onclick="window.location.href='/courses'">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <h1 class="header-title" id="courseTitle">Курс</h1>
+        </header>
+
+        <!-- Контейнер для авторизации (скрыт по умолчанию) -->
+        <div id="authContainer" style="display: none;">
+            <h2>Авторизация</h2>
+            <p>Пожалуйста, подождите, идет проверка авторизации...</p>
+            <div id="authLoading" style="display: none;">Загрузка...</div>
+            <div id="authError" style="display: none; color: red;"></div>
+            <p><a href="/course/{{ course_id }}?bypass_auth=1" class="button">Продолжить без авторизации</a></p>
+        </div>
+
+        <div class="course-progress-container">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-text" id="progressText">0% пройдено</div>
+        </div>
+
+        <div class="lessons-container" id="lessonsContainer">
+            <!-- Здесь будут отображаться уроки -->
+            <div class="loading-indicator">Загрузка уроков...</div>
+        </div>
+    </div>
+
+    <script>
+        // Получаем ID курса из URL
+        const courseId = "{{ course_id }}";
+        
+        // Функция для загрузки информации о курсе и его уроках
+        async function loadCourse() {
+            try {
+                // Проверяем авторизацию
+                const authResult = await authenticateUser();
+                if (!authResult.success) {
+                    // Если авторизация не удалась, показываем контейнер авторизации
+                    document.getElementById('lessonsContainer').style.display = 'none';
+                    document.getElementById('authContainer').style.display = 'block';
+                    return;
+                }
+                
+                // Если авторизация успешна, скрываем контейнер авторизации
+                document.getElementById('authContainer').style.display = 'none';
+                document.getElementById('lessonsContainer').style.display = 'block';
+                
+                // Загружаем курс
+                const response = await fetchWithAuth(`/api/courses/${courseId}`);
+                
+                // Проверяем статус ответа
+                if (response.status === 401) {
+                    // Если сервер вернул 401 (Unauthorized), показываем контейнер авторизации
+                    document.getElementById('lessonsContainer').style.display = 'none';
+                    document.getElementById('authContainer').style.display = 'block';
+                    return;
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayCourseInfo(data.course);
+                    displayLessons(data.lessons, data.progress);
+                    updateProgressBar(data.progress.progress_percentage);
+                } else {
+                    showError('Не удалось загрузить курс: ' + data.error);
+                }
+            } catch (error) {
+                showError('Ошибка при загрузке курса: ' + error.message);
+            }
+        }
+        
+        // Функция для отображения информации о курсе
+        function displayCourseInfo(course) {
+            document.getElementById('courseTitle').textContent = course.title;
+            document.title = course.title;
+        }
+        
+        // Функция для отображения уроков
+        function displayLessons(lessons, progress) {
+            const container = document.getElementById('lessonsContainer');
+            container.innerHTML = '';
+            
+            if (lessons.length === 0) {
+                container.innerHTML = '<div class="empty-state">Уроки не найдены</div>';
+                return;
+            }
+            
+            // Добавляем уроки
+            lessons.forEach((lesson, index) => {
+                // Создаем карточку урока
+                const lessonCard = document.createElement('div');
+                lessonCard.className = 'lesson-card';
+                if (lesson.completed) {
+                    lessonCard.classList.add('completed');
+                } else if (lesson.id === progress.current_lesson_id) {
+                    lessonCard.classList.add('active');
+                }
+                lessonCard.onclick = () => window.location.href = `/lesson/${lesson.id}`;
+                
+                const imageUrl = lesson.image_url || 'data:image/svg+xml;charset=UTF-8,%3csvg width="200" height="200" xmlns="http://www.w3.org/2000/svg"%3e%3cpath d="M187 95c0 51.915-42.085 94-94 94S-1 146.915-1 95 41.085 1 93 1s94 42.085 94 94z" fill="%23ffffff" fill-opacity=".2" stroke="%23ffffff"/%3e%3c/svg%3e';
+                
+                lessonCard.innerHTML = `
+                    <div class="lesson-content">
+                        <h2 class="lesson-title">${lesson.title}</h2>
+                        <p class="lesson-subtitle">${lesson.description || ''}</p>
+                        <div class="lesson-meta">
+                            <span class="lesson-duration">${lesson.duration_minutes} мин.</span>
+                            ${lesson.completed ? '<span class="lesson-status completed">Пройден</span>' : ''}
+                        </div>
+                    </div>
+                `;
+                
+                container.appendChild(lessonCard);
+            });
+        }
+        
+        // Функция для обновления прогресс-бара
+        function updateProgressBar(percentage) {
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            
+            progressFill.style.width = `${percentage}%`;
+            progressText.textContent = `${Math.round(percentage)}% пройдено`;
+        }
+        
+        // Функция для отображения ошибки
+        function showError(message) {
+            const container = document.getElementById('lessonsContainer');
+            container.innerHTML = `<div class="error-message">${message}</div>`;
+        }
+        
+        // Загружаем информацию о курсе при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCourse();
+        });
+    </script>
+</body>
+</html> 

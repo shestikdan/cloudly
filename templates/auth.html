@@ -3,70 +3,79 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Авторизация - Telegram Mini App</title>
+    <title>Авторизация</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="{{ url_for('static', filename='js/telegram-app.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/telegram-app.js') }}"></script>
 </head>
 <body>
-    <div class="container auth-container">
+    <div class="container">
         <h1>Авторизация</h1>
-        <div id="user-info">
-            <p>Проверка данных пользователя...</p>
-        </div>
-        <div id="auth-form" style="display: none;">
-            <div class="form-group">
-                <label for="username">Имя пользователя</label>
-                <input type="text" id="username" name="username" readonly>
-            </div>
-            <div class="form-group">
-                <label for="user-id">ID пользователя</label>
-                <input type="text" id="user-id" name="user-id" readonly>
-            </div>
-            <div class="buttons">
-                <button id="confirm-button" class="button primary">Подтвердить</button>
-                <button id="back-button" class="button secondary">Назад</button>
-            </div>
-        </div>
+        <p>Пожалуйста, подождите, идет проверка авторизации...</p>
     </div>
 
     <script>
-        // Дополнительный скрипт для страницы авторизации
-        document.addEventListener('DOMContentLoaded', async () => {
-            // Получаем данные пользователя
-            const data = await validateTelegramData();
-            
-            if (data.success) {
-                // Заполняем форму данными пользователя
-                document.getElementById('username').value = data.user.first_name || 'Неизвестно';
-                document.getElementById('user-id').value = data.user.id || 'Неизвестно';
+        document.addEventListener('DOMContentLoaded', async function() {
+            try {
+                // Получаем данные пользователя из Telegram WebApp
+                const result = await validateTelegramData();
                 
-                // Показываем форму
-                document.getElementById('auth-form').style.display = 'block';
-                
-                // Настраиваем кнопки
-                document.getElementById('back-button').addEventListener('click', () => {
-                    window.location.href = '/';
-                });
-                
-                document.getElementById('confirm-button').addEventListener('click', () => {
-                    window.location.href = '/';
-                });
-                
-                // Настраиваем кнопку Telegram
-                tg.MainButton.setText('Подтвердить');
-                tg.MainButton.show();
-                tg.MainButton.onClick(() => {
-                    window.location.href = '/';
-                });
-                
-                // Настраиваем кнопку "Назад"
-                if (tg.BackButton) {
-                    tg.BackButton.show();
-                    tg.BackButton.onClick(() => {
+                if (result.success) {
+                    // Сохраняем данные пользователя в localStorage
+                    localStorage.setItem('telegramUser', JSON.stringify(result.user));
+                    
+                    // Если есть предыдущая страница, возвращаемся на нее
+                    const referrer = document.referrer;
+                    if (referrer && referrer.includes(window.location.host) && !referrer.includes('/auth') && !referrer.includes('/redirect')) {
+                        window.location.href = referrer;
+                    } else {
+                        // Иначе переходим на главную
                         window.location.href = '/';
-                    });
+                    }
+                } else {
+                    // Проверяем, есть ли параметр bypass_auth в URL
+                    const urlParams = new URLSearchParams(window.location.search);
+                    if (urlParams.get('bypass_auth') === '1') {
+                        // Если есть параметр bypass_auth, пытаемся получить тестового пользователя
+                        const bypassResult = await fetch('/api/validate-telegram-data?bypass_auth=1', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({})
+                        }).then(response => response.json());
+                        
+                        if (bypassResult.success) {
+                            // Сохраняем данные тестового пользователя
+                            localStorage.setItem('telegramUser', JSON.stringify(bypassResult.user));
+                            
+                            // Перенаправляем на предыдущую страницу или на главную
+                            const referrer = document.referrer;
+                            if (referrer && referrer.includes(window.location.host) && !referrer.includes('/auth') && !referrer.includes('/redirect')) {
+                                window.location.href = referrer;
+                            } else {
+                                window.location.href = '/';
+                            }
+                            return;
+                        }
+                    }
+                    
+                    // Если авторизация не удалась и нет bypass_auth, показываем ошибку
+                    document.querySelector('.container').innerHTML = `
+                        <h1>Ошибка авторизации</h1>
+                        <p>Произошла ошибка при авторизации: ${result.error}</p>
+                        <p>Пожалуйста, убедитесь, что вы открыли приложение через Telegram.</p>
+                        <p><a href="/?bypass_auth=1" class="button">Продолжить без авторизации</a></p>
+                    `;
                 }
+            } catch (error) {
+                console.error('Error during authorization:', error);
+                document.querySelector('.container').innerHTML = `
+                    <h1>Ошибка авторизации</h1>
+                    <p>Произошла ошибка при авторизации: ${error.message}</p>
+                    <p>Пожалуйста, убедитесь, что вы открыли приложение через Telegram.</p>
+                    <p><a href="/?bypass_auth=1" class="button">Продолжить без авторизации</a></p>
+                `;
             }
         });
     </script>
