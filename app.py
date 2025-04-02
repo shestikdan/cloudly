@@ -8,11 +8,14 @@ import requests
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 import telebot
 import threading
+import signal
+import sys
 from database import init_db, save_user_data, log_user_activity
 import datetime
 from functools import wraps
 from models import db, Course, Lesson, ContentBlock, User, UserCourseProgress
 from flask_cors import CORS
+from bot import TelegramBot
 
 # Импортируем конфигурацию Ngrok, если файл существует
 try:
@@ -26,7 +29,7 @@ except ImportError:
 # Инициализация Flask приложения
 app = Flask(__name__)
 app.secret_key = 'telegram-mini-app-secret-key-change-in-production'
-app.debug = True  # Включаем режим отладки
+app.debug = False  # Включаем режим отладки
 
 # Добавляем поддержку CORS
 CORS(app, supports_credentials=True)
@@ -50,7 +53,7 @@ for rule in app.url_map.iter_rules():
 TELEGRAM_BOT_TOKEN = '5524640601:AAEbET-WKpBktoGpDVkdgoKZMpDRoRwD5rw'
 
 # Initialize Telegram Bot
-bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
+# bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN) # <--- Removed this line
 
 # Get the app URL from environment or use default for local development
 if HAS_NGROK:
@@ -857,61 +860,6 @@ def get_mood_data():
             'error': str(e)
         }), 500
 
-# Bot command to open the Mini App
-@bot.message_handler(commands=['start'])
-def start(message):
-    """Handle the /start command"""
-    # Сохраняем пользователя из сообщения бота
-    user_data = {
-        'id': message.from_user.id,
-        'first_name': message.from_user.first_name,
-        'last_name': message.from_user.last_name,
-        'username': message.from_user.username,
-        'language_code': message.from_user.language_code if hasattr(message.from_user, 'language_code') else None
-    }
-    save_user_data(user_data)
-    
-    bot.send_message(
-        message.chat.id,
-        "Добро пожаловать! Нажмите на кнопку ниже, чтобы открыть мини-приложение.",
-        reply_markup=telebot.types.InlineKeyboardMarkup().add(
-            telebot.types.InlineKeyboardButton(
-                text="Открыть мини-приложение",
-                web_app=telebot.types.WebAppInfo(url=APP_URL)
-            )
-        )
-    )
-
-# Bot command to get help
-@bot.message_handler(commands=['help'])
-def help(message):
-    """Handle the /help command"""
-    bot.send_message(
-        message.chat.id,
-        "Это бот с мини-приложением. Используйте команду /start, чтобы открыть приложение."
-    )
-
-# Handle all other messages
-@bot.message_handler(func=lambda message: True)
-def echo_all(message):
-    """Echo all other messages"""
-    bot.reply_to(
-        message,
-        "Я не понимаю эту команду. Используйте /start, чтобы открыть мини-приложение или /help для получения помощи."
-    )
-
-def run_bot():
-    """Run the Telegram bot in a separate thread"""
-    try:
-        # Удаляем webhook перед запуском polling
-        bot.remove_webhook()
-        print("Webhook удален")
-        
-        # Запускаем polling
-        bot.polling(none_stop=True)
-    except Exception as e:
-        print(f"Bot polling error: {e}")
-
 # API для работы с курсами
 @app.route('/api/courses', methods=['GET'])
 def get_courses():
@@ -1687,11 +1635,13 @@ def analyze_response():
 
 # Запускаем бот только если запускаем приложение напрямую (не через Gunicorn)
 if __name__ == '__main__':
-    # Start the bot in a separate thread
-    bot_thread = threading.Thread(target=run_bot)
+    # Создаем экземпляр бота
+    telegram_bot = TelegramBot()
+    
+    # Запускаем бота в отдельном потоке
+    bot_thread = threading.Thread(target=telegram_bot.run)
     bot_thread.daemon = True
     bot_thread.start()
     
-    # Start the Flask app
-    port = int(os.getenv('PORT', 5001))
-    app.run(host='0.0.0.0', port=port, debug=True, use_reloader=False)  # Отключаем автоперезагрузку 
+    # Запускаем Flask приложение
+    app.run(host='0.0.0.0', port=5001, use_reloader=False)
