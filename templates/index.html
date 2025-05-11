@@ -86,6 +86,30 @@
             const isTelegramWebAppAvailable = window.Telegram && window.Telegram.WebApp;
             const tg = isTelegramWebAppAvailable ? window.Telegram.WebApp : null;
             
+            // --- НАЧАЛО ИЗМЕНЕНИЯ: Обработчик изменения viewport ---
+            if (tg) {
+                const chatContainer = document.getElementById('chatContainer');
+                
+                const adjustViewportHeight = () => {
+                    if (chatContainer && tg.viewportHeight) {
+                         // Устанавливаем высоту контейнера равной видимой высоте viewport
+                         // Вычитаем небольшое значение, если нужно учесть другие элементы или отступы
+                         // Можно убрать ` - 1`, если не нужно
+                        chatContainer.style.height = `${tg.viewportHeight}px`;
+                        console.log(`Viewport changed. Set chat container height to: ${tg.viewportHeight}px`);
+                    }
+                };
+
+                // Вызываем при загрузке и при изменении viewport
+                tg.onEvent('viewportChanged', adjustViewportHeight);
+                // Вызываем также при инициализации на случай, если viewport уже изменен
+                //adjustViewportHeight(); 
+                
+                // Расширяем видимую область, если возможно
+               // tg.expand();
+            }
+            // --- КОНЕЦ ИЗМЕНЕНИЯ ---
+            
             // Получаем имя пользователя для приветствия
             let userName = "друг";
             if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {

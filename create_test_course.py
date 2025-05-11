@@ -30,31 +30,31 @@ def create_test_course():
             {
                 "title": "Введение в КПТ-дневник",
                 "description": "История появления и основные принципы КПТ-дневника",
-                "duration_minutes": 15,
+                "duration_minutes": 2,
                 "order": 1
             },
             {
                 "title": "Как работает КПТ-дневник",
                 "description": "Практические примеры использования КПТ-дневника",
-                "duration_minutes": 20,
+                "duration_minutes": 3,
                 "order": 2
             },
             {
                 "title": "Структура записи в КПТ-дневнике",
                 "description": "Подробный разбор компонентов КПТ-записи",
-                "duration_minutes": 25,
+                "duration_minutes": 2,
                 "order": 3
             },
             {
                 "title": "Практика ведения дневника",
                 "description": "Рекомендации по ежедневному ведению КПТ-дневника",
-                "duration_minutes": 20,
+                "duration_minutes": 3,
                 "order": 4
             },
             {
                 "title": "Особенности и преимущества",
                 "description": "Сравнение с обычным дневником и преимущества метода",
-                "duration_minutes": 15,
+                "duration_minutes": 2,
                 "order": 5
             }
         ]
